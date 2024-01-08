@@ -2,6 +2,7 @@ export type TranslationMeta = {
     locale: string;
     message: string;
     values?: object;
+    choice?: number;
     path: string;
 };
 type LiveTranslatorPluginOptions = {

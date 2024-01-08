@@ -75,12 +75,17 @@ export function encodeMessages(messagesObject) {
     const messages = cloneDeep(messagesObject);
     forIn(messages, (localeMessages, locale) => {
         deepForIn(localeMessages, (message, path) => {
-            const meta = ZeroWidthEncoder.encode(JSON.stringify({
-                locale,
-                message,
-                path,
-            }));
-            set(localeMessages, path, meta + message);
+            const parts = message.split('|').map(part => part.trim());
+            for (let i = 0; i < parts.length; i++) {
+                const meta = ZeroWidthEncoder.encode(JSON.stringify({
+                    locale,
+                    message,
+                    path,
+                    choice: i || undefined,
+                }));
+                parts[i] = meta + parts[i];
+            }
+            set(localeMessages, path, parts.join(' | '));
         });
     });
     return messages;
