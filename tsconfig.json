@@ -5,6 +5,7 @@
       "outDir": "./dist",
       "moduleResolution": "node",
       "esModuleInterop": true,
+      "resolveJsonModule": true,
     },
     "include": ["./src/**/*"],
     "exclude": [

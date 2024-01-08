@@ -1,4 +1,7 @@
 import throttle from 'lodash/throttle';
+import forIn from 'lodash/forIn';
+import cloneDeep from 'lodash/cloneDeep';
+import set from 'lodash/set';
 const css = `
 .live-translator-enable-button {
   position: fixed !important;
@@ -57,6 +60,31 @@ const css = `
   box-shadow: 0px 0px 5px #00c0ff !important;
 }
 `;
+function deepForIn(object, fn) {
+    const iteratee = (v, k) => {
+        if (typeof v === 'object') {
+            forIn(v, (childV, childK) => iteratee(childV, `${k}.${childK}`));
+        }
+        else {
+            fn(v, k);
+        }
+    };
+    forIn(object, iteratee);
+}
+export function encodeMessages(messagesObject) {
+    const messages = cloneDeep(messagesObject);
+    forIn(messages, (localeMessages, locale) => {
+        deepForIn(localeMessages, (message, path) => {
+            const meta = ZeroWidthEncoder.encode(JSON.stringify({
+                locale,
+                message,
+                path,
+            }));
+            set(localeMessages, path, meta + message);
+        });
+    });
+    return messages;
+}
 class ZeroWidthEncoder {
     static START = '\u200B';
     static ZERO = '\u200C';
@@ -134,35 +162,11 @@ class LiveTranslatorManager {
         this._enableButton.appendChild(this._indicator);
         this._enableButton.addEventListener('click', () => {
             this.toggle();
-            this.refreshI18n();
             this.render();
         });
         document.body.appendChild(this._enableButton);
         // initialize encode
-        const originalFormatter = this._options.i18n.formatter;
-        const self = this;
-        this._options.i18n.formatter = {
-            interpolate(message, values, path) {
-                const original = originalFormatter.interpolate(message, values, path);
-                let meta = '';
-                try {
-                    // filter nested objects, replace inner objects with string 'object'
-                    // this is needed when values from <i18n> tags are circular dependent objects
-                    const filteredValues = Object.fromEntries(Object.entries(values || {})
-                        .map(([key, value]) => [key, typeof value !== 'object' ? value : 'object']));
-                    meta = ZeroWidthEncoder.encode(JSON.stringify({
-                        message,
-                        values: filteredValues,
-                        path,
-                        locale: self._options.i18n.locale,
-                    }));
-                }
-                catch (exception) {
-                    console.warn(message, values, path, self._options.i18n.locale, exception);
-                }
-                return (original && meta && self._enabled) ? [meta, ...original] : original;
-            },
-        };
+        // encode is moved to i18n.ts file
         // initialize decode & render
         const throttler = throttle(() => this.render(), 800);
         const observer = new MutationObserver(throttler);
@@ -174,13 +178,7 @@ class LiveTranslatorManager {
         });
         document.documentElement.addEventListener('mousemove', throttler);
         // render for the first time
-        this.refreshI18n();
         this.render();
-    }
-    refreshI18n() {
-        const originalLocale = this._options.i18n.locale;
-        this._options.i18n.locale = '';
-        this._options.i18n.locale = originalLocale;
     }
     toggle(enable) {
         if (enable !== undefined) {

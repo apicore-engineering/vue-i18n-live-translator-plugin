@@ -1,0 +1,12 @@
+{
+    "LTPlugin": {
+        "HelloWorld": "Szia világ",
+        "WelcomeToLT": "Üdvözöl a(z) {app}",
+        "Messages": "Nincs új üzeneted | Egy új üzenet | Több új üzenet",
+        "MessagesCount": "{n} új üzenet",
+        "Attrs": {
+            "ImageAlt": "Képleírás",
+            "ImageTitle": "Képcím"
+        }
+    }
+}
