@@ -2,4 +2,6 @@
 . "$(dirname -- "$0")/_/husky.sh"
 
 npm run build
+npm run build:demo
 git add -A dist
+git add -A dist-demo
