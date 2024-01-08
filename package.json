@@ -6,7 +6,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc --declaration",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky install"
   },
   "husky": {
     "hooks": {
@@ -30,7 +31,7 @@
   },
   "devDependencies": {
     "@types/lodash": "^4.14.195",
-    "husky": "^8.0.0",
+    "husky": "^8.0.3",
     "typescript": "^5.1.6"
   }
 }
