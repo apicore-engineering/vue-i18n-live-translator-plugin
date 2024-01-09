@@ -9,6 +9,8 @@
             "ImageTitle": "Képcím"
         },
         "PartOne": "Első rész",
-        "PartTwo": "Második rész"
+        "PartTwo": "Második rész",
+        "ListItemN": "Elem {0}",
+        "MultipleTitle": "Több string egy tagen belül"
     }
 }

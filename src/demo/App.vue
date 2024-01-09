@@ -37,9 +37,13 @@
         {{ $t('LTPlugin.MessagesCount', pluralCount) }}
       </p>
       <h3>Multiple strings inside one tag</h3>
-      <p class="translated">
+      <p class="translated" :title="t('LTPlugin.MultipleTitle')">
         {{ t('LTPlugin.PartOne') }} {{ $t('LTPlugin.PartTwo') }}
       </p>
+      <h3>Scrollable container</h3>
+      <div class="scroll">
+        <div class="item" v-for="i in 5">{{ t('LTPlugin.ListItemN', [i]) }}</div>
+      </div>
       <h3>Attribute</h3>
       <img class="image" src="https://source.unsplash.com/random/500x500" :alt="t('LTPlugin.Attrs.ImageAlt')"
         :title="t('LTPlugin.Attrs.ImageTitle')">
@@ -101,6 +105,15 @@ const showMeta = computed(() => {
 
 .plural {
   width: 2rem;
+}
+
+.scroll {
+  height: 200px;
+  overflow-y: scroll;
+  box-shadow: inset 0px 0px 4px rgba(0,0,0,0.5);
+  .item {
+    line-height: 50px;
+  }
 }
 
 .image {

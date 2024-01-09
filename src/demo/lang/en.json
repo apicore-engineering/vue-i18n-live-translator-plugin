@@ -9,6 +9,8 @@
             "ImageTitle": "Image title"
         },
         "PartOne": "Part one",
-        "PartTwo": "Part two"
+        "PartTwo": "Part two",
+        "ListItemN": "Item {0}",
+        "MultipleTitle": "Multiple strings inside one tag"
     }
 }

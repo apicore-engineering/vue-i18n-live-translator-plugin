@@ -60,6 +60,19 @@ const css = `
   background: #00c0ff !important;
   box-shadow: 0px 0px 5px #00c0ff !important;
 }
+.live-translator-box {
+  outline: solid 2px green;
+  background: green;
+  opacity: 0.1;
+  position: absolute;
+  border-radius: 4px;
+  z-index: 9999;
+  display: none;
+}
+.live-translator-box.attribute {
+  outline: solid 2px blue;
+  background: blue;
+}
 `
 export type TranslationMeta = {
   locale: string,
@@ -165,6 +178,8 @@ class LiveTranslatorManager {
   _enableButton: HTMLButtonElement
   _indicator: HTMLSpanElement
 
+  _box: HTMLDivElement
+
   constructor (options: LiveTranslatorPluginOptions) {
     this._enabled = false
     this._options = options
@@ -197,6 +212,10 @@ class LiveTranslatorManager {
     })
     document.body.appendChild(this._enableButton)
 
+    this._box = document.createElement('div')
+    this._box.classList.add('live-translator-box')
+    document.body.appendChild(this._box)
+
     // initialize encode
     // encode is moved to i18n.ts file
 
@@ -212,6 +231,7 @@ class LiveTranslatorManager {
       },
     )
     document.documentElement.addEventListener('mousemove', throttler)
+    window.setInterval(throttler, 1000)
 
     // render for the first time
     this.render()
@@ -231,6 +251,7 @@ class LiveTranslatorManager {
 
   render () {
     const badgeWrappers = document.querySelectorAll('.live-translator-badge-wrapper')
+    this._box.style.display = 'none'
     badgeWrappers.forEach((wrapper) => {
       wrapper.remove()
     })
@@ -248,13 +269,16 @@ class LiveTranslatorManager {
       const node = queue.pop() as HTMLElement
 
       const badges = [] as HTMLElement[]
-      const parent = node.parentElement as Element
+      const parent = node.parentElement as HTMLElement
 
+      const rect = getBoundingClientRect(node)
       if (node instanceof Text) {
         const matches = (node.textContent as string).match(re)
         for (const match of matches ?? []) {
           const meta = JSON.parse(ZeroWidthEncoder.decode(match)) as TranslationMeta
-          badges.push(createBadge(meta, this._options))
+          const badge = createBadge(meta, this._options, node)
+          badge.addEventListener('mouseenter', () => this.showBox(node))
+          badges.push(badge)
         }
       }
 
@@ -264,17 +288,22 @@ class LiveTranslatorManager {
       for (const { attribute, match } of attributes) {
         for (const m of (match as RegExpMatchArray)) {
           const meta = JSON.parse(ZeroWidthEncoder.decode(m)) as TranslationMeta
-          badges.push(createBadge(meta, this._options, attribute.name))
+          const badge = createBadge(meta, this._options, node, attribute.name)
+          badge.addEventListener('mouseenter', () => this.showBox(node, true))
+          badges.push(badge)
         }
       }
 
       if (badges.length) {
-        let container: Element
+        let container: HTMLElement
         if (node.previousElementSibling && node.previousElementSibling.classList.contains('live-translator-badge-container')) {
-          container = node.previousElementSibling
+          container = node.previousElementSibling as HTMLElement
         } else {
+          const parentRect = getBoundingClientRect(node instanceof Text ? parent : node);
           container = document.createElement('span')
           container.classList.add('live-translator-badge-container')
+          container.style.top = rect.top - parentRect.top + 'px'
+          container.style.left = rect.left - parentRect.left + 'px'
           const relativeWrapper = document.createElement('span')
           relativeWrapper.classList.add('live-translator-badge-wrapper')
           relativeWrapper.appendChild(container)
@@ -290,9 +319,27 @@ class LiveTranslatorManager {
       }
     }
   }
+
+  showBox(node: Node, attribute = false) {
+    const rect = !attribute ? getBoundingClientRect(node) : (node as Element).getClientRects()[0]
+    if (!rect) {
+      return
+    }
+    if (attribute) {
+      this._box.classList.add('attribute')
+    } else {
+      this._box.classList.remove('attribute')
+    }
+    const padding = 2
+    this._box.style.top = rect.top - padding + window.scrollY + 'px'
+    this._box.style.left = rect.left - padding + window.scrollX + 'px'
+    this._box.style.width = rect.width + 2 * padding + 'px'
+    this._box.style.height = rect.height + 2 * padding + 'px'
+    this._box.style.display = 'block'
+  }
 }
 
-const createBadge = (meta: TranslationMeta, options: LiveTranslatorPluginOptions, attribute?: string) => {
+const createBadge = (meta: TranslationMeta, options: LiveTranslatorPluginOptions, node: Node, attribute?: string) => {
   const badge = document.createElement('a')
   badge.classList.add('live-translator-badge')
   let title = meta.path + ': ' + meta.message
@@ -311,6 +358,12 @@ const createBadge = (meta: TranslationMeta, options: LiveTranslatorPluginOptions
     return false
   })
   return badge
+}
+
+function getBoundingClientRect(node: Node, textOffset?: number) {
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  return range.getBoundingClientRect()
 }
 
 export const LiveTranslatorPlugin = {
