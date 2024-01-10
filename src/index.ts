@@ -1,5 +1,7 @@
-import VueI18n from 'vue-i18n'
 import throttle from 'lodash/throttle'
+import forIn from 'lodash/forIn'
+import cloneDeep from 'lodash/cloneDeep'
+import set from 'lodash/set'
 
 const css = `
 .live-translator-enable-button {
@@ -58,18 +60,64 @@ const css = `
   background: #00c0ff !important;
   box-shadow: 0px 0px 5px #00c0ff !important;
 }
+.live-translator-box {
+  outline: solid 2px green;
+  background: green;
+  opacity: 0.1;
+  position: absolute;
+  border-radius: 4px;
+  z-index: 9999;
+  display: none;
+}
+.live-translator-box.attribute {
+  outline: solid 2px blue;
+  background: blue;
+}
 `
 export type TranslationMeta = {
   locale: string,
   message: string,
   values?: object,
+  choice?: number,
   path: string,
 }
 
 type LiveTranslatorPluginOptions = {
-  i18n: VueI18n
   translationLink: (meta: TranslationMeta) => string
   persist?: boolean
+}
+
+function deepForIn(object: Object, fn: (value: string, key: string) => void) {
+  const iteratee = (v, k) => {
+    if (typeof v === 'object') {
+      forIn(v, (childV, childK) => iteratee(childV, `${k}.${childK}`))
+    } else {
+      fn(v, k)
+    }
+  }
+  forIn(object, iteratee)
+}
+
+export function encodeMessages(messagesObject) {
+  const messages = cloneDeep(messagesObject)
+  forIn(messages, (localeMessages, locale) => {
+    deepForIn(localeMessages, (message, path) => {
+      const parts = message.split('|').map(part => part.trim())
+      for (let i = 0; i < parts.length; i++) {
+        const meta = ZeroWidthEncoder.encode(
+          JSON.stringify({
+            locale,
+            message,
+            path,
+            choice: i || undefined,
+          } as TranslationMeta),
+        )
+        parts[i] = meta + parts[i]
+      }
+      set(localeMessages, path, parts.join(' | '))
+    })
+  })
+  return messages
 }
 
 abstract class ZeroWidthEncoder {
@@ -130,6 +178,8 @@ class LiveTranslatorManager {
   _enableButton: HTMLButtonElement
   _indicator: HTMLSpanElement
 
+  _box: HTMLDivElement
+
   constructor (options: LiveTranslatorPluginOptions) {
     this._enabled = false
     this._options = options
@@ -158,40 +208,16 @@ class LiveTranslatorManager {
     this._enableButton.appendChild(this._indicator)
     this._enableButton.addEventListener('click', () => {
       this.toggle()
-      this.refreshI18n()
       this.render()
     })
     document.body.appendChild(this._enableButton)
 
-    // initialize encode
-    const originalFormatter = this._options.i18n.formatter
-    const self = this
-    this._options.i18n.formatter = {
-      interpolate (message: string, values: object | null, path: string) {
-        const original = originalFormatter.interpolate(message, values, path) as unknown[] | null
-        let meta = ''
-        try {
-          // filter nested objects, replace inner objects with string 'object'
-          // this is needed when values from <i18n> tags are circular dependent objects
-          const filteredValues = Object.fromEntries(
-            Object.entries(values || {})
-              .map(([key, value]) => [key, typeof value !== 'object' ? value : 'object'])
-          )
-          meta = ZeroWidthEncoder.encode(
-            JSON.stringify({
-              message,
-              values: filteredValues,
-              path,
-              locale: self._options.i18n.locale,
-            } as TranslationMeta),
-          )
-        } catch (exception) {
-          console.warn(message, values, path, self._options.i18n.locale, exception)
-        }
+    this._box = document.createElement('div')
+    this._box.classList.add('live-translator-box')
+    document.body.appendChild(this._box)
 
-        return (original && meta && self._enabled) ? [meta, ...original] : original
-      },
-    }
+    // initialize encode
+    // encode is moved to i18n.ts file
 
     // initialize decode & render
     const throttler = throttle(() => this.render(), 800)
@@ -205,16 +231,10 @@ class LiveTranslatorManager {
       },
     )
     document.documentElement.addEventListener('mousemove', throttler)
+    window.setInterval(throttler, 1000)
 
     // render for the first time
-    this.refreshI18n()
     this.render()
-  }
-
-  refreshI18n () {
-    const originalLocale = this._options.i18n.locale
-    this._options.i18n.locale = ''
-    this._options.i18n.locale = originalLocale
   }
 
   toggle (enable?: boolean) {
@@ -231,6 +251,7 @@ class LiveTranslatorManager {
 
   render () {
     const badgeWrappers = document.querySelectorAll('.live-translator-badge-wrapper')
+    this._box.style.display = 'none'
     badgeWrappers.forEach((wrapper) => {
       wrapper.remove()
     })
@@ -248,13 +269,16 @@ class LiveTranslatorManager {
       const node = queue.pop() as HTMLElement
 
       const badges = [] as HTMLElement[]
-      const parent = node.parentElement as Element
+      const parent = node.parentElement as HTMLElement
 
+      const rect = getBoundingClientRect(node)
       if (node instanceof Text) {
         const matches = (node.textContent as string).match(re)
         for (const match of matches ?? []) {
           const meta = JSON.parse(ZeroWidthEncoder.decode(match)) as TranslationMeta
-          badges.push(createBadge(meta, this._options))
+          const badge = createBadge(meta, this._options, node)
+          badge.addEventListener('mouseenter', () => this.showBox(node))
+          badges.push(badge)
         }
       }
 
@@ -264,17 +288,22 @@ class LiveTranslatorManager {
       for (const { attribute, match } of attributes) {
         for (const m of (match as RegExpMatchArray)) {
           const meta = JSON.parse(ZeroWidthEncoder.decode(m)) as TranslationMeta
-          badges.push(createBadge(meta, this._options, attribute.name))
+          const badge = createBadge(meta, this._options, node, attribute.name)
+          badge.addEventListener('mouseenter', () => this.showBox(node, true))
+          badges.push(badge)
         }
       }
 
       if (badges.length) {
-        let container: Element
+        let container: HTMLElement
         if (node.previousElementSibling && node.previousElementSibling.classList.contains('live-translator-badge-container')) {
-          container = node.previousElementSibling
+          container = node.previousElementSibling as HTMLElement
         } else {
+          const parentRect = getBoundingClientRect(node instanceof Text ? parent : node);
           container = document.createElement('span')
           container.classList.add('live-translator-badge-container')
+          container.style.top = rect.top - parentRect.top + 'px'
+          container.style.left = rect.left - parentRect.left + 'px'
           const relativeWrapper = document.createElement('span')
           relativeWrapper.classList.add('live-translator-badge-wrapper')
           relativeWrapper.appendChild(container)
@@ -290,9 +319,27 @@ class LiveTranslatorManager {
       }
     }
   }
+
+  showBox(node: Node, attribute = false) {
+    const rect = !attribute ? getBoundingClientRect(node) : (node as Element).getClientRects()[0]
+    if (!rect) {
+      return
+    }
+    if (attribute) {
+      this._box.classList.add('attribute')
+    } else {
+      this._box.classList.remove('attribute')
+    }
+    const padding = 2
+    this._box.style.top = rect.top - padding + window.scrollY + 'px'
+    this._box.style.left = rect.left - padding + window.scrollX + 'px'
+    this._box.style.width = rect.width + 2 * padding + 'px'
+    this._box.style.height = rect.height + 2 * padding + 'px'
+    this._box.style.display = 'block'
+  }
 }
 
-const createBadge = (meta: TranslationMeta, options: LiveTranslatorPluginOptions, attribute?: string) => {
+const createBadge = (meta: TranslationMeta, options: LiveTranslatorPluginOptions, node: Node, attribute?: string) => {
   const badge = document.createElement('a')
   badge.classList.add('live-translator-badge')
   let title = meta.path + ': ' + meta.message
@@ -311,6 +358,12 @@ const createBadge = (meta: TranslationMeta, options: LiveTranslatorPluginOptions
     return false
   })
   return badge
+}
+
+function getBoundingClientRect(node: Node, textOffset?: number) {
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  return range.getBoundingClientRect()
 }
 
 export const LiveTranslatorPlugin = {
