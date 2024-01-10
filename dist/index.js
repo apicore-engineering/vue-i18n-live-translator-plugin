@@ -275,7 +275,7 @@ class LiveTranslatorManager {
                     }
                 }
                 catch (error) {
-                    console.warn('Could not get bounding box for', node);
+                    // console.warn('Could not get bounding box for', node);
                 }
                 const container = document.createElement('span');
                 container.classList.add('live-translator-badge-container');
