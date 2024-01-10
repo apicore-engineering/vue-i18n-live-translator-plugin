@@ -259,9 +259,6 @@ class LiveTranslatorManager {
   }
 
   render () {
-    if (this._enabled) {
-      console.time()
-    }
     this._box.style.display = 'none'
     document.
       querySelectorAll('.live-translator-badge-container').
@@ -282,7 +279,6 @@ class LiveTranslatorManager {
       const node = queue.pop() as HTMLElement
 
       const badges = [] as HTMLElement[]
-      const parent = node.parentElement as HTMLElement
 
       if (node instanceof Text) {
         const matches = (node.textContent as string).match(re)
@@ -336,7 +332,6 @@ class LiveTranslatorManager {
         queue.push(child)
       }
     }
-    console.timeEnd()
   }
 
   showBox(node: Node, attribute = false) {
@@ -372,6 +367,8 @@ const createBadge = (meta: TranslationMeta, options: LiveTranslatorPluginOptions
   badge.href = options.translationLink(meta)
   badge.target = 'popup'
   badge.addEventListener('click', (e: Event) => {
+    console.log('clicked', badge.href);
+    
     window.open(badge.href, 'popup', 'width=600,height=600,scrollbars=no,resizable=no')
     e.preventDefault()
     return false

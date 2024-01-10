@@ -221,9 +221,6 @@ class LiveTranslatorManager {
         console.log(`%c Live Translator ${this._enabled ? 'ON' : 'OFF'} `, 'background: #222; color: #bada55');
     }
     render() {
-        if (this._enabled) {
-            console.time();
-        }
         this._box.style.display = 'none';
         document.
             querySelectorAll('.live-translator-badge-container').
@@ -239,7 +236,6 @@ class LiveTranslatorManager {
         while (queue.length > 0) {
             const node = queue.pop();
             const badges = [];
-            const parent = node.parentElement;
             if (node instanceof Text) {
                 const matches = node.textContent.match(re);
                 for (const match of matches ?? []) {
@@ -290,7 +286,6 @@ class LiveTranslatorManager {
                 queue.push(child);
             }
         }
-        console.timeEnd();
     }
     showBox(node, attribute = false) {
         const rect = !attribute ? getBoundingClientRect(node) : node.getClientRects()[0];
@@ -326,6 +321,7 @@ const createBadge = (meta, options, node, attribute) => {
     badge.href = options.translationLink(meta);
     badge.target = 'popup';
     badge.addEventListener('click', (e) => {
+        console.log('clicked', badge.href);
         window.open(badge.href, 'popup', 'width=600,height=600,scrollbars=no,resizable=no');
         e.preventDefault();
         return false;
