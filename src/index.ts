@@ -319,8 +319,7 @@ class LiveTranslatorManager {
             position.left = clientRect.left + window.screenX
           }
         } catch (error) {
-          console.error(error, node, node.tagName);
-          
+          console.warn('Could not get bounding box for', node);
         }
         const container = document.createElement('span')
         container.classList.add('live-translator-badge-container')
