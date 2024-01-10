@@ -12,6 +12,8 @@ app.use(LiveTranslatorPlugin, {
     return `?meta=${encodeURIComponent(JSON.stringify(meta))}`
   },
   persist: true,
+  root: document.getElementById('app'),
+  refreshRate: 200,
 })
 
 app.mount('#app')

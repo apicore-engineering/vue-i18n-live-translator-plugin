@@ -26,14 +26,13 @@ const css = `
   border-radius: 100%;
   background-color: red;
 }
-.live-translator-badge-wrapper {
-  position: relative !important;
-  width: 0px;
-  height: 0px;
-}
 .live-translator-badge-container {
   position: absolute !important;
+  background: rgba(255,255,255,0.5);
+  outline: solid 2px rgba(255,255,255,0.5);
+  border-radius: 5px;
   display: flex;
+  gap: 2px;
   z-index: 10000;
 }
 .live-translator-badge {
@@ -61,17 +60,16 @@ const css = `
   box-shadow: 0px 0px 5px #00c0ff !important;
 }
 .live-translator-box {
-  outline: solid 2px green;
-  background: green;
-  opacity: 0.1;
+  outline: solid 2px lightgreen !important;
+  box-shadow: 0px 0px 5px lightgreen !important;
   position: absolute;
-  border-radius: 4px;
+  border-radius: 7px;
   z-index: 9999;
   display: none;
 }
 .live-translator-box.attribute {
-  outline: solid 2px blue;
-  background: blue;
+  outline: solid 2px #00c0ff !important;
+  box-shadow: 0px 0px 5px #00c0ff !important;
 }
 `
 export type TranslationMeta = {
@@ -85,6 +83,8 @@ export type TranslationMeta = {
 type LiveTranslatorPluginOptions = {
   translationLink: (meta: TranslationMeta) => string
   persist?: boolean
+  root?: HTMLElement
+  refreshRate?: number
 }
 
 function deepForIn(object: Object, fn: (value: string, key: string) => void) {
@@ -179,6 +179,7 @@ class LiveTranslatorManager {
   _indicator: HTMLSpanElement
 
   _box: HTMLDivElement
+  _wrapper: HTMLDivElement
 
   constructor (options: LiveTranslatorPluginOptions) {
     this._enabled = false
@@ -212,15 +213,19 @@ class LiveTranslatorManager {
     })
     document.body.appendChild(this._enableButton)
 
+    this._wrapper = document.createElement('div')
+    this._wrapper.classList.add('live-translator-wrapper')
+    document.body.prepend(this._wrapper)
+
     this._box = document.createElement('div')
     this._box.classList.add('live-translator-box')
-    document.body.appendChild(this._box)
+    this._wrapper.appendChild(this._box)
 
     // initialize encode
     // encode is moved to i18n.ts file
 
     // initialize decode & render
-    const throttler = throttle(() => this.render(), 800)
+    const throttler = throttle(() => this.render(), this._options.refreshRate || 50)
     const observer = new MutationObserver(throttler)
     observer.observe(document.documentElement,
       {
@@ -231,10 +236,14 @@ class LiveTranslatorManager {
       },
     )
     document.documentElement.addEventListener('mousemove', throttler)
-    window.setInterval(throttler, 1000)
+    window.setInterval(throttler, (this._options.refreshRate || 50) * 2)
 
     // render for the first time
     this.render()
+  }
+
+  get root (): HTMLElement {
+    return this._options.root || document.documentElement
   }
 
   toggle (enable?: boolean) {
@@ -250,11 +259,12 @@ class LiveTranslatorManager {
   }
 
   render () {
-    const badgeWrappers = document.querySelectorAll('.live-translator-badge-wrapper')
     this._box.style.display = 'none'
-    badgeWrappers.forEach((wrapper) => {
-      wrapper.remove()
-    })
+    document.
+      querySelectorAll('.live-translator-badge-container').
+      forEach((elem) => {
+        elem.remove()
+      })
 
     this._indicator.style.background = this._enabled ? 'lightgreen' : 'red'
 
@@ -264,14 +274,12 @@ class LiveTranslatorManager {
 
     const re = new RegExp(ZeroWidthEncoder.PATTERN, 'gm')
 
-    const queue = [document.documentElement] as Node[]
+    const queue = [this.root] as Node[]
     while (queue.length > 0) {
       const node = queue.pop() as HTMLElement
 
       const badges = [] as HTMLElement[]
-      const parent = node.parentElement as HTMLElement
 
-      const rect = getBoundingClientRect(node)
       if (node instanceof Text) {
         const matches = (node.textContent as string).match(re)
         for (const match of matches ?? []) {
@@ -295,20 +303,26 @@ class LiveTranslatorManager {
       }
 
       if (badges.length) {
-        let container: HTMLElement
-        if (node.previousElementSibling && node.previousElementSibling.classList.contains('live-translator-badge-container')) {
-          container = node.previousElementSibling as HTMLElement
-        } else {
-          const parentRect = getBoundingClientRect(node instanceof Text ? parent : node);
-          container = document.createElement('span')
-          container.classList.add('live-translator-badge-container')
-          container.style.top = rect.top - parentRect.top + 'px'
-          container.style.left = rect.left - parentRect.left + 'px'
-          const relativeWrapper = document.createElement('span')
-          relativeWrapper.classList.add('live-translator-badge-wrapper')
-          relativeWrapper.appendChild(container)
-          parent.insertBefore(relativeWrapper, node)
+        let position = { top: 0, left: 0}
+        try {
+          if (node instanceof Text) {
+            const clientRect = getBoundingClientRect(node)
+            position.top = clientRect.top + window.scrollY
+            position.left = clientRect.left + window.screenX
+          } else {
+            const clientRect = node.getClientRects()[0]
+            position.top = clientRect.top + clientRect.height - 10 + window.scrollY
+            position.left = clientRect.left + window.screenX
+          }
+        } catch (error) {
+          // console.warn('Could not get bounding box for', node);
         }
+        const container = document.createElement('span')
+        container.classList.add('live-translator-badge-container')
+        container.style.top = position.top + 'px'
+        container.style.left = position.left + 'px'
+        this._wrapper.appendChild(container)
+        
         for (const badge of badges) {
           container.appendChild(badge)
         }
@@ -353,6 +367,8 @@ const createBadge = (meta: TranslationMeta, options: LiveTranslatorPluginOptions
   badge.href = options.translationLink(meta)
   badge.target = 'popup'
   badge.addEventListener('click', (e: Event) => {
+    console.log('clicked', badge.href);
+    
     window.open(badge.href, 'popup', 'width=600,height=600,scrollbars=no,resizable=no')
     e.preventDefault()
     return false

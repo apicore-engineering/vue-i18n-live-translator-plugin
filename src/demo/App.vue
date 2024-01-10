@@ -42,7 +42,7 @@
       </p>
       <h3>Scrollable container</h3>
       <div class="scroll">
-        <div class="item" v-for="i in 5">{{ t('LTPlugin.ListItemN', [i]) }}</div>
+        <div class="item translated" v-for="i in 5">{{ t('LTPlugin.ListItemN', [i]) }}</div>
       </div>
       <h3>Attribute</h3>
       <img class="image" src="https://source.unsplash.com/random/500x500" :alt="t('LTPlugin.Attrs.ImageAlt')"
