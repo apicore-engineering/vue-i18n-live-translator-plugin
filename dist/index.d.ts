@@ -8,6 +8,8 @@ export type TranslationMeta = {
 type LiveTranslatorPluginOptions = {
     translationLink: (meta: TranslationMeta) => string;
     persist?: boolean;
+    root?: HTMLElement;
+    refreshRate?: number;
 };
 export declare function encodeMessages(messagesObject: any): any;
 export declare const LiveTranslatorPlugin: {
