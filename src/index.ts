@@ -308,14 +308,19 @@ class LiveTranslatorManager {
 
       if (badges.length) {
         let position = { top: 0, left: 0}
-        if (node instanceof Text) {
-          const clientRect = getBoundingClientRect(node)
-          position.top = clientRect.top + window.scrollY
-          position.left = clientRect.left + window.screenX
-        } else {
-          const clientRect = node.getClientRects()[0]
-          position.top = clientRect.top + clientRect.height - 10 + window.scrollY
-          position.left = clientRect.left + window.screenX
+        try {
+          if (node instanceof Text) {
+            const clientRect = getBoundingClientRect(node)
+            position.top = clientRect.top + window.scrollY
+            position.left = clientRect.left + window.screenX
+          } else {
+            const clientRect = node.getClientRects()[0]
+            position.top = clientRect.top + clientRect.height - 10 + window.scrollY
+            position.left = clientRect.left + window.screenX
+          }
+        } catch (error) {
+          console.error(error, node, node.tagName);
+          
         }
         const container = document.createElement('span')
         container.classList.add('live-translator-badge-container')
