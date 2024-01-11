@@ -359,13 +359,17 @@ class LiveTranslatorManager {
             position.top = clientRect.top + window.scrollY
             position.left = clientRect.left + window.screenX
             const elemOnTop = document.elementFromPoint(clientRect.left + clientRect.width/2, clientRect.top + clientRect.height/2)
-            isVisible = isVisible || node.parentElement.contains(elemOnTop) || elemOnTop === this._box
+            isVisible = isVisible ||
+              node.parentElement.contains(elemOnTop) ||
+              this._wrapper.contains(elemOnTop)
           } else {
             const clientRect = node.getClientRects()[0]
             position.top = clientRect.top + clientRect.height - 10 + window.scrollY
             position.left = clientRect.left + window.screenX
             const elemOnTop = document.elementFromPoint(clientRect.left + clientRect.width/2, clientRect.top + clientRect.height/2)
-            isVisible = isVisible || node.contains(elemOnTop) || elemOnTop === this._box
+            isVisible = isVisible ||
+              node.contains(elemOnTop) ||
+              this._wrapper.contains(elemOnTop)
           }
           if (!isVisible) {
             continue
