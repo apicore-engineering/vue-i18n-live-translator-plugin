@@ -9,8 +9,7 @@ const css = `
   top: 2px;
   left: 2px;
   z-index: 10000;
-  padding: 1px;
-  padding-left: 2px;
+  padding: 2px;
   color: black;
   background: rgba(255, 255, 255, 0.6);
   font-family: sans-serif;
