@@ -6,13 +6,13 @@ export type TranslationMeta = {
     path: string;
 };
 type LiveTranslatorPluginOptions = {
+    i18n: any;
     translationLink: (meta: TranslationMeta) => string;
     persist?: boolean;
     root?: HTMLElement;
     refreshRate?: number;
     checkVisibility?: boolean;
 };
-export declare function encodeMessages(messagesObject: any): any;
 export declare const LiveTranslatorPlugin: {
     install(app: any, options: LiveTranslatorPluginOptions): void;
 };

@@ -8,12 +8,13 @@ const app = createApp(App)
 app.use(i18n)
 
 app.use(LiveTranslatorPlugin, {
+  i18n,
   translationLink(meta: TranslationMeta) {
     return `?meta=${encodeURIComponent(JSON.stringify(meta))}`
   },
   persist: true,
   root: document.getElementById('app'),
-  refreshRate: 50,
+  refreshRate: 100,
   checkVisibility: true,
 })
 

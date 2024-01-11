@@ -6,23 +6,26 @@ import set from 'lodash/set'
 const css = `
 .live-translator-enable-button {
   position: fixed !important;
-  top: 0;
-  left: 0;
+  top: 2px;
+  left: 2px;
   z-index: 10000;
   padding: 2px;
   color: black;
   background: rgba(255, 255, 255, 0.6);
   font-family: sans-serif;
   font-size: 8px;
+  border-radius: 10px;
+  display: flex;
+  gap: 2px;
+  align-items: center;
 }
 .live-translator-enable-button:hover {
   background: white;
 }
 .live-translator-enable-button-indicator {
   display: inline-block;
-  height: 6px;
-  width: 6px;
-  margin-left: 2px;
+  height: 10px;
+  width: 10px;
   border-radius: 100%;
   background-color: red;
 }
@@ -81,6 +84,7 @@ export type TranslationMeta = {
 }
 
 type LiveTranslatorPluginOptions = {
+  i18n: any,
   translationLink: (meta: TranslationMeta) => string
   persist?: boolean
   root?: HTMLElement
@@ -99,24 +103,22 @@ function deepForIn(object: Object, fn: (value: string, key: string) => void) {
   forIn(object, iteratee)
 }
 
-export function encodeMessages(messagesObject) {
+function encodeMessages(messagesObject: object, locale: string) {
   const messages = cloneDeep(messagesObject)
-  forIn(messages, (localeMessages, locale) => {
-    deepForIn(localeMessages, (message, path) => {
-      const parts = message.split('|').map(part => part.trim())
-      for (let i = 0; i < parts.length; i++) {
-        const meta = ZeroWidthEncoder.encode(
-          JSON.stringify({
-            locale,
-            message,
-            path,
-            choice: i || undefined,
-          } as TranslationMeta),
-        )
-        parts[i] = meta + parts[i]
-      }
-      set(localeMessages, path, parts.join(' | '))
-    })
+  deepForIn(messages, (message, path) => {
+    const parts = message.split('|').map(part => part.trim())
+    for (let i = 0; i < parts.length; i++) {
+      const meta = ZeroWidthEncoder.encode(
+        JSON.stringify({
+          locale,
+          message,
+          path,
+          choice: i || undefined,
+        } as TranslationMeta),
+      )
+      parts[i] = meta + parts[i]
+    }
+    set(messages, path, parts.join(' | '))
   })
   return messages
 }
@@ -172,6 +174,38 @@ abstract class ZeroWidthEncoder {
   }
 }
 
+type CacheElem = { value: Element, locked: boolean }
+class Cache {
+  private _cache: Record<string, CacheElem> = {}
+
+  has (key: string) {
+    return key in this._cache
+  }
+
+  store (key: string, value: Element) {
+    this._cache[key] = { value, locked: true }
+  }
+
+  lock (key: string) {
+    this._cache[key].locked = true
+  }
+
+  clear(force = false) {
+    for (const key in this._cache) {
+      if (!force && this._cache[key].locked) {
+        this._cache[key].locked = false
+      } else {
+        this._cache[key].value.remove()
+        delete this._cache[key]
+      }
+    }
+  }
+
+  get length () {
+    return Object.keys(this._cache).length
+  }
+}
+
 class LiveTranslatorManager {
   _enabled: boolean
   _options: LiveTranslatorPluginOptions
@@ -181,6 +215,8 @@ class LiveTranslatorManager {
 
   _box: HTMLDivElement
   _wrapper: HTMLDivElement
+
+  _cache = new Cache()
 
   constructor (options: LiveTranslatorPluginOptions) {
     this._enabled = false
@@ -223,7 +259,11 @@ class LiveTranslatorManager {
     this._wrapper.appendChild(this._box)
 
     // initialize encode
-    // encode is moved to i18n.ts file
+    for (const locale of this.i18n.availableLocales) {
+      let messages = this.i18n.getLocaleMessage(locale)
+      messages = encodeMessages(messages, locale)
+      this.i18n.setLocaleMessage(locale, messages)
+    }
 
     // initialize decode & render
     const throttler = throttle(() => this.render(), this._options.refreshRate || 50)
@@ -247,6 +287,10 @@ class LiveTranslatorManager {
     return this._options.root || document.documentElement
   }
 
+  get i18n () {
+    return this._options.i18n.global || this._options.i18n
+  }
+
   toggle (enable?: boolean) {
     if (enable !== undefined) {
       this._enabled = enable
@@ -257,16 +301,12 @@ class LiveTranslatorManager {
       localStorage.setItem('live-translator-enabled', JSON.stringify(this._enabled))
     }
     console.log(`%c Live Translator ${this._enabled ? 'ON' : 'OFF'} `, 'background: #222; color: #bada55');
+    if (!this._enabled) {
+      this._cache.clear(true)
+    }
   }
 
   render () {
-    this._box.style.display = 'none'
-    document.
-      querySelectorAll('.live-translator-badge-container').
-      forEach((elem) => {
-        elem.remove()
-      })
-
     this._indicator.style.background = this._enabled ? 'lightgreen' : 'red'
 
     if (!this._enabled) {
@@ -281,13 +321,17 @@ class LiveTranslatorManager {
 
       const badges = [] as HTMLElement[]
 
+      let cacheKeyParts = []
+
       if (node instanceof Text) {
         const matches = (node.textContent as string).match(re)
         for (const match of matches ?? []) {
           const meta = JSON.parse(ZeroWidthEncoder.decode(match)) as TranslationMeta
           const badge = createBadge(meta, this._options, node)
           badge.addEventListener('mouseenter', () => this.showBox(node))
+          badge.addEventListener('mouseleave', () => this.hideBox())
           badges.push(badge)
+          cacheKeyParts.push(meta.path)
         }
       }
 
@@ -299,7 +343,9 @@ class LiveTranslatorManager {
           const meta = JSON.parse(ZeroWidthEncoder.decode(m)) as TranslationMeta
           const badge = createBadge(meta, this._options, node, attribute.name)
           badge.addEventListener('mouseenter', () => this.showBox(node, true))
+          badge.addEventListener('mouseleave', () => this.hideBox())
           badges.push(badge)
+          cacheKeyParts.push(meta.path)
         }
       }
 
@@ -311,16 +357,18 @@ class LiveTranslatorManager {
             const clientRect = getBoundingClientRect(node)
             position.top = clientRect.top + window.scrollY
             position.left = clientRect.left + window.screenX
-            isVisible = isVisible || node.parentElement.contains(
-              document.elementFromPoint(clientRect.left + clientRect.width/2, clientRect.top + clientRect.height/2)
-            )
+            const elemOnTop = document.elementFromPoint(clientRect.left + clientRect.width/2, clientRect.top + clientRect.height/2)
+            isVisible = isVisible ||
+              node.parentElement.contains(elemOnTop) ||
+              this._wrapper.contains(elemOnTop)
           } else {
             const clientRect = node.getClientRects()[0]
             position.top = clientRect.top + clientRect.height - 10 + window.scrollY
             position.left = clientRect.left + window.screenX
-            isVisible = isVisible || node.contains(
-              document.elementFromPoint(clientRect.left + clientRect.width/2, clientRect.top + clientRect.height/2)
-            )
+            const elemOnTop = document.elementFromPoint(clientRect.left + clientRect.width/2, clientRect.top + clientRect.height/2)
+            isVisible = isVisible ||
+              node.contains(elemOnTop) ||
+              this._wrapper.contains(elemOnTop)
           }
           if (!isVisible) {
             continue
@@ -329,14 +377,23 @@ class LiveTranslatorManager {
           // console.warn('Could not get bounding box for', node);
           continue
         }
-        const container = document.createElement('span')
-        container.classList.add('live-translator-badge-container')
-        container.style.top = position.top + 'px'
-        container.style.left = position.left + 'px'
-        this._wrapper.appendChild(container)
-        
-        for (const badge of badges) {
-          container.appendChild(badge)
+
+        cacheKeyParts.unshift(position.left, position.top)
+        const cacheKey = cacheKeyParts.join(';')
+
+        if (!this._cache.has(cacheKey)) {
+          const container = document.createElement('span')
+          container.classList.add('live-translator-badge-container')
+          container.style.top = position.top + 'px'
+          container.style.left = position.left + 'px'
+          this._wrapper.appendChild(container)
+  
+          for (const badge of badges) {
+            container.appendChild(badge)
+          }
+          this._cache.store(cacheKey, container)
+        } else {
+          this._cache.lock(cacheKey)
         }
       }
 
@@ -344,6 +401,8 @@ class LiveTranslatorManager {
         queue.push(child)
       }
     }
+
+    this._cache.clear()
   }
 
   showBox(node: Node, attribute = false) {
@@ -362,6 +421,10 @@ class LiveTranslatorManager {
     this._box.style.width = rect.width + 2 * padding + 'px'
     this._box.style.height = rect.height + 2 * padding + 'px'
     this._box.style.display = 'block'
+  }
+
+  hideBox () {
+    this._box.style.display = 'none'
   }
 }
 
