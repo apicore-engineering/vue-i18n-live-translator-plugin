@@ -11,6 +11,8 @@
         "PartOne": "Part one",
         "PartTwo": "Part two",
         "ListItemN": "Item {0}",
-        "MultipleTitle": "Multiple strings inside one tag"
+        "MultipleTitle": "Multiple strings inside one tag",
+        "Draggable": "Drag me around to cover elements",
+        "PositionAbsolute": "Position is absolute"
     }
 }

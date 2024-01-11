@@ -13,7 +13,7 @@ app.use(LiveTranslatorPlugin, {
   },
   persist: true,
   root: document.getElementById('app'),
-  refreshRate: 200,
+  refreshRate: 50,
 })
 
 app.mount('#app')

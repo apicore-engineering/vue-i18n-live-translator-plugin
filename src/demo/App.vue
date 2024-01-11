@@ -47,6 +47,11 @@
       <h3>Attribute</h3>
       <img class="image" src="https://source.unsplash.com/random/500x500" :alt="t('LTPlugin.Attrs.ImageAlt')"
         :title="t('LTPlugin.Attrs.ImageTitle')">
+
+      <div id="draggable" draggable @mousedown="dragStart" @mousemove="dragMove" @mouseup="dragEnd" ref="draggable" :title="t('LTPlugin.PositionAbsolute')">
+        <h3>Absolute position</h3>
+        {{ t('LTPlugin.Draggable') }}
+      </div>
     </div>
   </div>
 </template>
@@ -65,6 +70,26 @@ const showMeta = computed(() => {
   }
   return null
 })
+
+const dragPos = ref<{ x: number, y: number } | null>(null)
+const draggable = ref<HTMLDivElement>()
+
+function dragStart(e: MouseEvent) {
+  dragPos.value = {
+    x: e.offsetX,
+    y: e.offsetY,
+  }
+}
+
+function dragMove(e: MouseEvent) {
+  if (!dragPos.value) return
+  draggable.value!.style.top = e.pageY - dragPos.value.y + 'px'
+  draggable.value!.style.left = e.pageX - dragPos.value.x + 'px'
+}
+
+function dragEnd() {
+  dragPos.value = null
+}
 
 </script>
 
@@ -119,5 +144,33 @@ const showMeta = computed(() => {
 .image {
   width: 80%;
   border-radius: 8px;
+}
+
+#draggable {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: #eeeeeee2;
+  width: 200px;
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: grab;
+  flex-direction: column;
+
+  h3 {
+    margin-top: 0;
+  }
+
+  &:hover {
+    outline: solid 2px #eeeeee;
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
 }
 </style>

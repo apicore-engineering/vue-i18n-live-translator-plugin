@@ -11,6 +11,8 @@
         "PartOne": "Első rész",
         "PartTwo": "Második rész",
         "ListItemN": "Elem {0}",
-        "MultipleTitle": "Több string egy tagen belül"
+        "MultipleTitle": "Több string egy tagen belül",
+        "Draggable": "Mozgass egy elem fölé, hogy eltakard azt",
+        "PositionAbsolute": "'absolute' pozíció"
     }
 }
