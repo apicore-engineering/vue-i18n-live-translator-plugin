@@ -10,6 +10,7 @@ type LiveTranslatorPluginOptions = {
     persist?: boolean;
     root?: HTMLElement;
     refreshRate?: number;
+    checkVisibility?: boolean;
 };
 export declare function encodeMessages(messagesObject: any): any;
 export declare const LiveTranslatorPlugin: {

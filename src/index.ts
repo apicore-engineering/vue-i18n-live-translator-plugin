@@ -84,7 +84,8 @@ type LiveTranslatorPluginOptions = {
   translationLink: (meta: TranslationMeta) => string
   persist?: boolean
   root?: HTMLElement
-  refreshRate?: number
+  refreshRate?: number,
+  checkVisibility?: boolean,
 }
 
 function deepForIn(object: Object, fn: (value: string, key: string) => void) {
@@ -305,19 +306,19 @@ class LiveTranslatorManager {
       if (badges.length) {
         let position = { top: 0, left: 0}
         try {
-          let isVisible
+          let isVisible = !this._options.checkVisibility
           if (node instanceof Text) {
             const clientRect = getBoundingClientRect(node)
             position.top = clientRect.top + window.scrollY
             position.left = clientRect.left + window.screenX
-            isVisible = node.parentElement.contains(
+            isVisible = isVisible || node.parentElement.contains(
               document.elementFromPoint(clientRect.left + clientRect.width/2, clientRect.top + clientRect.height/2)
             )
           } else {
             const clientRect = node.getClientRects()[0]
             position.top = clientRect.top + clientRect.height - 10 + window.scrollY
             position.left = clientRect.left + window.screenX
-            isVisible = node.contains(
+            isVisible = isVisible || node.contains(
               document.elementFromPoint(clientRect.left + clientRect.width/2, clientRect.top + clientRect.height/2)
             )
           }

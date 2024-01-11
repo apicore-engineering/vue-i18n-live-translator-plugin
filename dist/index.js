@@ -259,18 +259,18 @@ class LiveTranslatorManager {
             if (badges.length) {
                 let position = { top: 0, left: 0 };
                 try {
-                    let isVisible;
+                    let isVisible = !this._options.checkVisibility;
                     if (node instanceof Text) {
                         const clientRect = getBoundingClientRect(node);
                         position.top = clientRect.top + window.scrollY;
                         position.left = clientRect.left + window.screenX;
-                        isVisible = node.parentElement.contains(document.elementFromPoint(clientRect.left + clientRect.width / 2, clientRect.top + clientRect.height / 2));
+                        isVisible = isVisible || node.parentElement.contains(document.elementFromPoint(clientRect.left + clientRect.width / 2, clientRect.top + clientRect.height / 2));
                     }
                     else {
                         const clientRect = node.getClientRects()[0];
                         position.top = clientRect.top + clientRect.height - 10 + window.scrollY;
                         position.left = clientRect.left + window.screenX;
-                        isVisible = node.contains(document.elementFromPoint(clientRect.left + clientRect.width / 2, clientRect.top + clientRect.height / 2));
+                        isVisible = isVisible || node.contains(document.elementFromPoint(clientRect.left + clientRect.width / 2, clientRect.top + clientRect.height / 2));
                     }
                     if (!isVisible) {
                         continue;

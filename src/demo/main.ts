@@ -14,6 +14,7 @@ app.use(LiveTranslatorPlugin, {
   persist: true,
   root: document.getElementById('app'),
   refreshRate: 50,
+  checkVisibility: true,
 })
 
 app.mount('#app')
