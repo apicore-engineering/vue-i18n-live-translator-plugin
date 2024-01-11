@@ -6,23 +6,27 @@ import set from 'lodash/set'
 const css = `
 .live-translator-enable-button {
   position: fixed !important;
-  top: 0;
-  left: 0;
+  top: 2px;
+  left: 2px;
   z-index: 10000;
-  padding: 2px;
+  padding: 1px;
+  padding-left: 2px;
   color: black;
   background: rgba(255, 255, 255, 0.6);
   font-family: sans-serif;
   font-size: 8px;
+  border-radius: 10px;
+  display: flex;
+  gap: 2px;
+  align-items: center;
 }
 .live-translator-enable-button:hover {
   background: white;
 }
 .live-translator-enable-button-indicator {
   display: inline-block;
-  height: 6px;
-  width: 6px;
-  margin-left: 2px;
+  height: 10px;
+  width: 10px;
   border-radius: 100%;
   background-color: red;
 }
@@ -171,6 +175,38 @@ abstract class ZeroWidthEncoder {
   }
 }
 
+type CacheElem = { value: Element, locked: boolean }
+class Cache {
+  private _cache: Record<string, CacheElem> = {}
+
+  has (key: string) {
+    return key in this._cache
+  }
+
+  store (key: string, value: Element) {
+    this._cache[key] = { value, locked: true }
+  }
+
+  lock (key: string) {
+    this._cache[key].locked = true
+  }
+
+  clear(force = false) {
+    for (const key in this._cache) {
+      if (!force && this._cache[key].locked) {
+        this._cache[key].locked = false
+      } else {
+        this._cache[key].value.remove()
+        delete this._cache[key]
+      }
+    }
+  }
+
+  get length () {
+    return Object.keys(this._cache).length
+  }
+}
+
 class LiveTranslatorManager {
   _enabled: boolean
   _options: LiveTranslatorPluginOptions
@@ -181,7 +217,7 @@ class LiveTranslatorManager {
   _box: HTMLDivElement
   _wrapper: HTMLDivElement
 
-  _cache: Record<string, Element> = {}
+  _cache = new Cache()
 
   constructor (options: LiveTranslatorPluginOptions) {
     this._enabled = false
@@ -266,6 +302,9 @@ class LiveTranslatorManager {
       localStorage.setItem('live-translator-enabled', JSON.stringify(this._enabled))
     }
     console.log(`%c Live Translator ${this._enabled ? 'ON' : 'OFF'} `, 'background: #222; color: #bada55');
+    if (!this._enabled) {
+      this._cache.clear(true)
+    }
   }
 
   render () {
@@ -274,8 +313,6 @@ class LiveTranslatorManager {
     if (!this._enabled) {
       return
     }
-
-    const newCache = {}
 
     const re = new RegExp(ZeroWidthEncoder.PATTERN, 'gm')
 
@@ -341,7 +378,7 @@ class LiveTranslatorManager {
         cacheKeyParts.unshift(position.left, position.top)
         const cacheKey = cacheKeyParts.join(';')
 
-        if (!(cacheKey in this._cache)) {
+        if (!this._cache.has(cacheKey)) {
           const container = document.createElement('span')
           container.classList.add('live-translator-badge-container')
           container.style.top = position.top + 'px'
@@ -351,10 +388,9 @@ class LiveTranslatorManager {
           for (const badge of badges) {
             container.appendChild(badge)
           }
-          newCache[cacheKey] = container
+          this._cache.store(cacheKey, container)
         } else {
-          newCache[cacheKey] = this._cache[cacheKey]
-          delete this._cache[cacheKey]
+          this._cache.lock(cacheKey)
         }
       }
 
@@ -363,10 +399,7 @@ class LiveTranslatorManager {
       }
     }
 
-    for (const elem of Object.values(this._cache)) {
-      elem.remove()
-    }
-    this._cache = newCache
+    this._cache.clear()
   }
 
   showBox(node: Node, attribute = false) {
