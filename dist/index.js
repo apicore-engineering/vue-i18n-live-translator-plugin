@@ -82,22 +82,20 @@ function deepForIn(object, fn) {
     };
     forIn(object, iteratee);
 }
-export function encodeMessages(messagesObject) {
+function encodeMessages(messagesObject, locale) {
     const messages = cloneDeep(messagesObject);
-    forIn(messages, (localeMessages, locale) => {
-        deepForIn(localeMessages, (message, path) => {
-            const parts = message.split('|').map(part => part.trim());
-            for (let i = 0; i < parts.length; i++) {
-                const meta = ZeroWidthEncoder.encode(JSON.stringify({
-                    locale,
-                    message,
-                    path,
-                    choice: i || undefined,
-                }));
-                parts[i] = meta + parts[i];
-            }
-            set(localeMessages, path, parts.join(' | '));
-        });
+    deepForIn(messages, (message, path) => {
+        const parts = message.split('|').map(part => part.trim());
+        for (let i = 0; i < parts.length; i++) {
+            const meta = ZeroWidthEncoder.encode(JSON.stringify({
+                locale,
+                message,
+                path,
+                choice: i || undefined,
+            }));
+            parts[i] = meta + parts[i];
+        }
+        set(messages, path, parts.join(' | '));
     });
     return messages;
 }
@@ -156,6 +154,7 @@ class LiveTranslatorManager {
     _indicator;
     _box;
     _wrapper;
+    _cache = {};
     constructor(options) {
         this._enabled = false;
         this._options = options;
@@ -190,7 +189,11 @@ class LiveTranslatorManager {
         this._box.classList.add('live-translator-box');
         this._wrapper.appendChild(this._box);
         // initialize encode
-        // encode is moved to i18n.ts file
+        for (const locale of this.i18n.availableLocales) {
+            let messages = this.i18n.getLocaleMessage(locale);
+            messages = encodeMessages(messages, locale);
+            this.i18n.setLocaleMessage(locale, messages);
+        }
         // initialize decode & render
         const throttler = throttle(() => this.render(), this._options.refreshRate || 50);
         const observer = new MutationObserver(throttler);
@@ -208,6 +211,9 @@ class LiveTranslatorManager {
     get root() {
         return this._options.root || document.documentElement;
     }
+    get i18n() {
+        return this._options.i18n.global || this._options.i18n;
+    }
     toggle(enable) {
         if (enable !== undefined) {
             this._enabled = enable;
@@ -221,28 +227,26 @@ class LiveTranslatorManager {
         console.log(`%c Live Translator ${this._enabled ? 'ON' : 'OFF'} `, 'background: #222; color: #bada55');
     }
     render() {
-        this._box.style.display = 'none';
-        document.
-            querySelectorAll('.live-translator-badge-container').
-            forEach((elem) => {
-            elem.remove();
-        });
         this._indicator.style.background = this._enabled ? 'lightgreen' : 'red';
         if (!this._enabled) {
             return;
         }
+        const newCache = {};
         const re = new RegExp(ZeroWidthEncoder.PATTERN, 'gm');
         const queue = [this.root];
         while (queue.length > 0) {
             const node = queue.pop();
             const badges = [];
+            let cacheKeyParts = [];
             if (node instanceof Text) {
                 const matches = node.textContent.match(re);
                 for (const match of matches ?? []) {
                     const meta = JSON.parse(ZeroWidthEncoder.decode(match));
                     const badge = createBadge(meta, this._options, node);
                     badge.addEventListener('mouseenter', () => this.showBox(node));
+                    badge.addEventListener('mouseleave', () => this.hideBox());
                     badges.push(badge);
+                    cacheKeyParts.push(meta.path);
                 }
             }
             const attributes = (node.attributes ? [...node.attributes] : [])
@@ -253,7 +257,9 @@ class LiveTranslatorManager {
                     const meta = JSON.parse(ZeroWidthEncoder.decode(m));
                     const badge = createBadge(meta, this._options, node, attribute.name);
                     badge.addEventListener('mouseenter', () => this.showBox(node, true));
+                    badge.addEventListener('mouseleave', () => this.hideBox());
                     badges.push(badge);
+                    cacheKeyParts.push(meta.path);
                 }
             }
             if (badges.length) {
@@ -264,13 +270,15 @@ class LiveTranslatorManager {
                         const clientRect = getBoundingClientRect(node);
                         position.top = clientRect.top + window.scrollY;
                         position.left = clientRect.left + window.screenX;
-                        isVisible = isVisible || node.parentElement.contains(document.elementFromPoint(clientRect.left + clientRect.width / 2, clientRect.top + clientRect.height / 2));
+                        const elemOnTop = document.elementFromPoint(clientRect.left + clientRect.width / 2, clientRect.top + clientRect.height / 2);
+                        isVisible = isVisible || node.parentElement.contains(elemOnTop) || elemOnTop === this._box;
                     }
                     else {
                         const clientRect = node.getClientRects()[0];
                         position.top = clientRect.top + clientRect.height - 10 + window.scrollY;
                         position.left = clientRect.left + window.screenX;
-                        isVisible = isVisible || node.contains(document.elementFromPoint(clientRect.left + clientRect.width / 2, clientRect.top + clientRect.height / 2));
+                        const elemOnTop = document.elementFromPoint(clientRect.left + clientRect.width / 2, clientRect.top + clientRect.height / 2);
+                        isVisible = isVisible || node.contains(elemOnTop) || elemOnTop === this._box;
                     }
                     if (!isVisible) {
                         continue;
@@ -280,19 +288,32 @@ class LiveTranslatorManager {
                     // console.warn('Could not get bounding box for', node);
                     continue;
                 }
-                const container = document.createElement('span');
-                container.classList.add('live-translator-badge-container');
-                container.style.top = position.top + 'px';
-                container.style.left = position.left + 'px';
-                this._wrapper.appendChild(container);
-                for (const badge of badges) {
-                    container.appendChild(badge);
+                cacheKeyParts.unshift(position.left, position.top);
+                const cacheKey = cacheKeyParts.join(';');
+                if (!(cacheKey in this._cache)) {
+                    const container = document.createElement('span');
+                    container.classList.add('live-translator-badge-container');
+                    container.style.top = position.top + 'px';
+                    container.style.left = position.left + 'px';
+                    this._wrapper.appendChild(container);
+                    for (const badge of badges) {
+                        container.appendChild(badge);
+                    }
+                    newCache[cacheKey] = container;
+                }
+                else {
+                    newCache[cacheKey] = this._cache[cacheKey];
+                    delete this._cache[cacheKey];
                 }
             }
             for (const child of node.childNodes) {
                 queue.push(child);
             }
         }
+        for (const elem of Object.values(this._cache)) {
+            elem.remove();
+        }
+        this._cache = newCache;
     }
     showBox(node, attribute = false) {
         const rect = !attribute ? getBoundingClientRect(node) : node.getClientRects()[0];
@@ -311,6 +332,9 @@ class LiveTranslatorManager {
         this._box.style.width = rect.width + 2 * padding + 'px';
         this._box.style.height = rect.height + 2 * padding + 'px';
         this._box.style.display = 'block';
+    }
+    hideBox() {
+        this._box.style.display = 'none';
     }
 }
 const createBadge = (meta, options, node, attribute) => {
