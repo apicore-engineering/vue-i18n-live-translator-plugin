@@ -6,15 +6,10 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "dev": "vite",
+    "predev": "husky install",
     "build:demo": "vite build --base=/vue-i18n-live-translator-plugin/",
     "build": "tsc --declaration",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "husky install"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "echo hi"
-    }
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
