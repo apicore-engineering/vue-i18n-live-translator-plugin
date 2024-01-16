@@ -356,7 +356,7 @@ class LiveTranslatorManager {
           if (node instanceof Text) {
             const clientRect = getBoundingClientRect(node)
             position.top = clientRect.top + window.scrollY
-            position.left = clientRect.left + window.screenX
+            position.left = clientRect.left + window.scrollX
             const elemOnTop = document.elementFromPoint(clientRect.left + clientRect.width/2, clientRect.top + clientRect.height/2)
             isVisible = isVisible ||
               node.parentElement.contains(elemOnTop) ||
@@ -364,7 +364,7 @@ class LiveTranslatorManager {
           } else {
             const clientRect = node.getClientRects()[0]
             position.top = clientRect.top + clientRect.height - 10 + window.scrollY
-            position.left = clientRect.left + window.screenX
+            position.left = clientRect.left + window.scrollX
             const elemOnTop = document.elementFromPoint(clientRect.left + clientRect.width/2, clientRect.top + clientRect.height/2)
             isVisible = isVisible ||
               node.contains(elemOnTop) ||
