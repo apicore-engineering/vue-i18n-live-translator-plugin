@@ -52,8 +52,8 @@ cd vue-i18n-live-translator-plugin
 npm install
 ```
 ```bash
-husky install
-```
-```bash
 npm run dev # demo & dev app with vite
 ```
+> [!WARNING]  
+> Always make sure that your changes have been built before pushing with `npm run build`. 
+> The package uses [husky](https://typicode.github.io/husky) to register a pre-commit hook that builds the code.
