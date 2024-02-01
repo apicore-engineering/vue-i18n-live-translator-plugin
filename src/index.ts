@@ -103,33 +103,13 @@ function deepForIn(object: Object, fn: (value: string, key: string) => void) {
   forIn(object, iteratee)
 }
 
-function encodeMessages(messagesObject: object, locale: string) {
-  const messages = cloneDeep(messagesObject)
-  deepForIn(messages, (message, path) => {
-    const parts = message.split('|').map(part => part.trim())
-    for (let i = 0; i < parts.length; i++) {
-      const meta = ZeroWidthEncoder.encode(
-        JSON.stringify({
-          locale,
-          message,
-          path,
-          choice: i || undefined,
-        } as TranslationMeta),
-      )
-      parts[i] = meta + parts[i]
-    }
-    set(messages, path, parts.join(' | '))
-  })
-  return messages
-}
-
 abstract class ZeroWidthEncoder {
   static START = '\u200B'
   static ZERO = '\u200C'
   static ONE = '\u200D'
   static SPACE = '\u200E'
   static END = '\u200F'
-  static PATTERN = `${this.START}[${this.ZERO}${this.ONE}${this.SPACE}]+${this.END}`
+  static PATTERN = new RegExp(`${this.START}[${this.ZERO}${this.ONE}${this.SPACE}]+${this.END}`, 'gm')
 
   static encode (text: string) {
     const binary = text
@@ -259,11 +239,7 @@ class LiveTranslatorManager {
     this._wrapper.appendChild(this._box)
 
     // initialize encode
-    for (const locale of this.i18n.availableLocales) {
-      let messages = this.i18n.getLocaleMessage(locale)
-      messages = encodeMessages(messages, locale)
-      this.i18n.setLocaleMessage(locale, messages)
-    }
+    // moved to toggle()
 
     // initialize decode & render
     const throttler = throttle(() => this.render(), this._options.refreshRate || 50)
@@ -291,6 +267,35 @@ class LiveTranslatorManager {
     return this._options.i18n.global || this._options.i18n
   }
 
+  transformMessages (operation: 'encode' | 'restore' = 'encode') {
+    for (const locale of this.i18n.availableLocales) {
+      const messages = cloneDeep(this.i18n.getLocaleMessage(locale))
+      deepForIn(messages, (message, path) => {
+        const parts = message.split('|').map(part => part.trim())
+        for (let i = 0; i < parts.length; i++) {
+          switch (operation) {
+            case 'encode':
+              const meta = ZeroWidthEncoder.encode(
+                JSON.stringify({
+                  locale,
+                  message,
+                  path,
+                  choice: i || undefined,
+                } as TranslationMeta),
+              )
+              parts[i] = meta + parts[i]
+              break
+            case 'restore':
+              parts[i] = parts[i].replaceAll(ZeroWidthEncoder.PATTERN, '')
+              break
+          }
+        }
+        set(messages, path, parts.join(' | '))
+      })
+      this.i18n.setLocaleMessage(locale, messages)
+    }
+  }
+
   toggle (enable?: boolean) {
     if (enable !== undefined) {
       this._enabled = enable
@@ -304,6 +309,7 @@ class LiveTranslatorManager {
     if (!this._enabled) {
       this._cache.clear(true)
     }
+    this.transformMessages(this._enabled ? 'encode' : 'restore')
   }
 
   render () {
@@ -312,8 +318,6 @@ class LiveTranslatorManager {
     if (!this._enabled) {
       return
     }
-
-    const re = new RegExp(ZeroWidthEncoder.PATTERN, 'gm')
 
     const queue = [this.root] as Node[]
     while (queue.length > 0) {
@@ -324,7 +328,7 @@ class LiveTranslatorManager {
       let cacheKeyParts = []
 
       if (node instanceof Text) {
-        const matches = (node.textContent as string).match(re)
+        const matches = (node.textContent as string).match(ZeroWidthEncoder.PATTERN)
         for (const match of matches ?? []) {
           const meta = JSON.parse(ZeroWidthEncoder.decode(match)) as TranslationMeta
           const badge = createBadge(meta, this._options, node)
@@ -336,7 +340,7 @@ class LiveTranslatorManager {
       }
 
       const attributes = (node.attributes ? [...node.attributes] : [])
-        .map((attribute) => ({ attribute, match: attribute.value.match(re) }))
+        .map((attribute) => ({ attribute, match: attribute.value.match(ZeroWidthEncoder.PATTERN) }))
         .filter(({ match }) => !!match)
       for (const { attribute, match } of attributes) {
         for (const m of (match as RegExpMatchArray)) {
@@ -442,8 +446,6 @@ const createBadge = (meta: TranslationMeta, options: LiveTranslatorPluginOptions
   badge.href = options.translationLink(meta)
   badge.target = 'popup'
   badge.addEventListener('click', (e: Event) => {
-    console.log('clicked', badge.href);
-    
     window.open(badge.href, 'popup', 'width=600,height=600,scrollbars=no,resizable=no')
     e.preventDefault()
     return false
