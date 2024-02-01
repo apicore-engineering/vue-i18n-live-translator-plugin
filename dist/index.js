@@ -388,7 +388,6 @@ const createBadge = (meta, options, node, attribute) => {
     badge.href = options.translationLink(meta);
     badge.target = 'popup';
     badge.addEventListener('click', (e) => {
-        console.log('clicked', badge.href);
         window.open(badge.href, 'popup', 'width=600,height=600,scrollbars=no,resizable=no');
         e.preventDefault();
         return false;
