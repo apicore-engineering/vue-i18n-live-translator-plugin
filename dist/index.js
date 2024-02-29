@@ -1,7 +1,7 @@
 import throttle from 'lodash/throttle';
 import forIn from 'lodash/forIn';
-import cloneDeep from 'lodash/cloneDeep';
 import set from 'lodash/set';
+const cloneDeep = (obj) => JSON.parse(JSON.stringify(obj));
 const css = `
 .live-translator-enable-button {
   position: fixed !important;
