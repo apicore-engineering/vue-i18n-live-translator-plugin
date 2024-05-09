@@ -104,7 +104,7 @@ function deepForIn(object: Object, fn: (value: string, key: string) => void) {
   forIn(object, iteratee)
 }
 
-abstract class ZeroWidthEncoder {
+export abstract class ZeroWidthEncoder {
   static START = '\u200B'
   static ZERO = '\u200C'
   static ONE = '\u200D'
@@ -152,6 +152,10 @@ abstract class ZeroWidthEncoder {
       .map((num) => String.fromCharCode(parseInt(num, 2)))
       .join('')
     return text
+  }
+
+  static cleanString (str: string): string {
+    return str.replaceAll(ZeroWidthEncoder.PATTERN, '')
   }
 }
 
@@ -287,7 +291,7 @@ class LiveTranslatorManager {
               parts[i] = meta + parts[i]
               break
             case 'restore':
-              parts[i] = parts[i].replaceAll(ZeroWidthEncoder.PATTERN, '')
+              parts[i] = ZeroWidthEncoder.cleanString(parts[i])
               break
           }
         }
