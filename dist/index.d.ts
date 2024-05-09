@@ -13,6 +13,17 @@ type LiveTranslatorPluginOptions = {
     refreshRate?: number;
     checkVisibility?: boolean;
 };
+export declare abstract class ZeroWidthEncoder {
+    static START: string;
+    static ZERO: string;
+    static ONE: string;
+    static SPACE: string;
+    static END: string;
+    static PATTERN: RegExp;
+    static encode(text: string): string;
+    static decode(zeroWidth: string): string;
+    static cleanString(str: string): string;
+}
 export declare const LiveTranslatorPlugin: {
     install(app: any, options: LiveTranslatorPluginOptions): void;
 };

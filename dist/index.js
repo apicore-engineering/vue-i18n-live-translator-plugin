@@ -85,7 +85,7 @@ function deepForIn(object, fn) {
     };
     forIn(object, iteratee);
 }
-class ZeroWidthEncoder {
+export class ZeroWidthEncoder {
     static START = '\u200B';
     static ZERO = '\u200C';
     static ONE = '\u200D';
@@ -131,6 +131,9 @@ class ZeroWidthEncoder {
             .map((num) => String.fromCharCode(parseInt(num, 2)))
             .join('');
         return text;
+    }
+    static cleanString(str) {
+        return str.replaceAll(ZeroWidthEncoder.PATTERN, '');
     }
 }
 class Cache {
@@ -239,7 +242,7 @@ class LiveTranslatorManager {
                             parts[i] = meta + parts[i];
                             break;
                         case 'restore':
-                            parts[i] = parts[i].replaceAll(ZeroWidthEncoder.PATTERN, '');
+                            parts[i] = ZeroWidthEncoder.cleanString(parts[i]);
                             break;
                     }
                 }
