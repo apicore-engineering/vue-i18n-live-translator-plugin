@@ -333,7 +333,7 @@ class LiveTranslatorManager {
       let cacheKeyParts = []
 
       if (node instanceof Text) {
-        const matches = (node.textContent as string).match(ZeroWidthEncoder.PATTERN)
+        const matches = node.textContent.match(ZeroWidthEncoder.PATTERN)
         for (const match of matches ?? []) {
           const meta = JSON.parse(ZeroWidthEncoder.decode(match)) as TranslationMeta
           const badge = createBadge(meta, this._options, node)
