@@ -355,6 +355,17 @@ class LiveTranslatorManager {
           badge.addEventListener('mouseleave', () => this.hideBox())
           badges.push(badge)
           cacheKeyParts.push(meta.path)
+
+          if (attribute.name === 'href') {
+            node.onclick = (ev) => {
+              ev.stopPropagation()
+              ev.preventDefault()
+              const clone = node.cloneNode() as HTMLElement
+              const href = ZeroWidthEncoder.cleanString(clone.getAttribute('href'))
+              clone.setAttribute('href', href)
+              clone.click()
+            }
+          }
         }
       }
 

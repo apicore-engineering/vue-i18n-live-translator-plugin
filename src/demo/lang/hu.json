@@ -13,6 +13,10 @@
         "ListItemN": "Elem {0}",
         "MultipleTitle": "Több string egy tagen belül",
         "Draggable": "Mozgass egy elem fölé, hogy eltakard azt",
-        "PositionAbsolute": "'absolute' pozíció"
+        "PositionAbsolute": "'absolute' pozíció",
+        "Link": {
+            "Href": "https://hu.wikipedia.org/",
+            "Title": "Link a Wikipediára"
+        }
     }
 }

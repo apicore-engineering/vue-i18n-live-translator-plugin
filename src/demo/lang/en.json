@@ -13,6 +13,10 @@
         "ListItemN": "Item {0}",
         "MultipleTitle": "Multiple strings inside one tag",
         "Draggable": "Drag me around to cover elements",
-        "PositionAbsolute": "Position is absolute"
+        "PositionAbsolute": "Position is absolute",
+        "Link": {
+            "Href": "https://en.wikipedia.org/",
+            "Title": "Link to Wikipedia"
+        }
     }
 }

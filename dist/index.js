@@ -299,6 +299,16 @@ class LiveTranslatorManager {
                     badge.addEventListener('mouseleave', () => this.hideBox());
                     badges.push(badge);
                     cacheKeyParts.push(meta.path);
+                    if (attribute.name === 'href') {
+                        node.onclick = (ev) => {
+                            ev.stopPropagation();
+                            ev.preventDefault();
+                            const clone = node.cloneNode();
+                            const href = ZeroWidthEncoder.cleanString(clone.getAttribute('href'));
+                            clone.setAttribute('href', href);
+                            clone.click();
+                        };
+                    }
                 }
             }
             if (badges.length) {

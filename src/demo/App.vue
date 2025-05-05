@@ -45,8 +45,10 @@
         <div class="item translated" v-for="i in 5">{{ t('LTPlugin.ListItemN', [i]) }}</div>
       </div>
       <h3>Attribute</h3>
-      <img class="image" src="https://source.unsplash.com/random/500x500" :alt="t('LTPlugin.Attrs.ImageAlt')"
+      <img class="image" src="https://picsum.photos/600/400" :alt="t('LTPlugin.Attrs.ImageAlt')"
         :title="t('LTPlugin.Attrs.ImageTitle')">
+      <h3>HREF attribute</h3>
+      <a :href="t('LTPlugin.Link.Href')" target="_blank">{{ t('LTPlugin.Link.Title') }}</a>
 
       <div id="draggable" draggable @mousedown="dragStart" @mousemove="dragMove" @mouseup="dragEnd" ref="draggable" :title="t('LTPlugin.PositionAbsolute')">
         <h3>Absolute position</h3>
@@ -142,7 +144,6 @@ function dragEnd() {
 }
 
 .image {
-  width: 80%;
   border-radius: 8px;
 }
 
